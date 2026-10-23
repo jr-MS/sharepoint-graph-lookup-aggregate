@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "GRAPH_SITE_ID": "{hostname}.sharepoint.com,{site-collection-id},{site-id}",
+    "GRAPH_LIST_ID": "{list-id}"
+  }
+}

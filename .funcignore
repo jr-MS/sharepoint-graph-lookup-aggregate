@@ -1,0 +1,11 @@
+.git*
+.vscode
+.venv
+venv
+__pycache__
+*.pyc
+local.settings.json
+bruno
+README.md
+examples
+.DS_Store

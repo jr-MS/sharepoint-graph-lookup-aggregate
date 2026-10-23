@@ -1,0 +1,61 @@
+info:
+  name: Aggregate
+  type: http
+  seq: 1
+
+http:
+  method: post
+  url: "{{functionBase}}/api/aggregate?code={{functionKey}}"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "mode": "graph",
+        "top": 1500,
+        "fields": [
+          "Title",
+          "Owner",
+          "OwnerLookupId",
+          "Category",
+          "CategoryLookupId"
+        ]
+      }
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        const body = res.getBody();
+        const result = body.result;
+        const items = result.items;
+        const first = items[0];
+
+        test("one call returns the items", function () {
+          expect(res.getStatus()).to.eql(200);
+          expect(body.status).to.eql("ok");
+          expect(result.itemCount).to.eql(1500);
+          expect(items).to.have.length(1500);
+          expect(result.batchSize).to.eql(20);
+          expect(result.failures).to.eql([]);
+        });
+
+        test("LookupId and display name are both present", function () {
+          expect(first.OwnerLookupId == null).to.eql(false);
+          expect(first.Owner == null).to.eql(false);
+          expect(first.CategoryLookupId == null).to.eql(false);
+          expect(first.Category == null).to.eql(false);
+        });
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  Same POST as the curl example in the README. One call. The function reads
+  the list inside Graph $batch calls of 20. Do not put the function key in
+  email or source control.

@@ -1,0 +1,30 @@
+{
+  "status": "ok",
+  "elapsedMs": 54000.0,
+  "summary": {
+    "mode": "graph",
+    "itemCount": 1500,
+    "failureCount": 0,
+    "ownerPresent": true
+  },
+  "result": {
+    "mode": "graph",
+    "siteId": "{hostname}.sharepoint.com,{site-collection-id},{site-id}",
+    "listId": "{list-id}",
+    "itemCount": 1500,
+    "idCount": 1500,
+    "batchCount": 75,
+    "batchSize": 20,
+    "failures": [],
+    "items": [
+      {
+        "id": "1",
+        "Title": "Example item",
+        "OwnerLookupId": "12",
+        "Owner": "Example User",
+        "CategoryLookupId": "1002",
+        "Category": "Example category"
+      }
+    ]
+  }
+}

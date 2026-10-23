@@ -1,0 +1,6 @@
+name: Example
+variables:
+  - name: functionBase
+    value: https://YOUR-FUNCTION-APP.azurewebsites.net
+  - name: functionKey
+    value: paste-the-function-key-here-do-not-commit

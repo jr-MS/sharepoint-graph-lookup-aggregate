@@ -1,0 +1,9 @@
+local.settings.json
+.python_packages/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.azure/
+bruno/**/environments/Customer.yml
+.DS_Store
