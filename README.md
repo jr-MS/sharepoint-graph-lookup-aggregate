@@ -12,7 +12,7 @@ The sample call is the JSON body in [The API](#the-api). Send it with curl. A Br
 Do these six steps in order. Each one is written out below.
 
 1. Sign in to the Azure subscription where this app should live.
-2. Create a Premium Function App and turn on its system-assigned identity.
+2. Create a Linux Function App on Basic B1 and turn on its system-assigned identity. Move to Premium EP1 only if B1 is too slow or times out.
 3. Grant that identity `Sites.Selected`, then grant it read on this one list's site.
 4. Deploy this repository. The portal wizard does not contain this code.
 5. Call `mode=mock` and `top=2` to prove the URL and key. This does not touch SharePoint.
@@ -136,19 +136,23 @@ A successful body looks like `examples/aggregate-response.json`. The values in t
 
 ## Create the Function App
 
-Use a Premium plan. The call waits until all requested items are read. The Consumption plan caps one execution at 5 minutes by default and 10 minutes at most. A cold start plus Graph throttling can pass that. Premium defaults to 30 minutes.
+Start on **Linux Basic B1**. Do not start on Consumption or Premium.
 
-The HTTP response still has to come back within 230 seconds. That limit is the Azure load balancer, and a more expensive plan does not remove it. The 1,500-item test of this pattern returned in about 54 seconds, inside that limit. If a later run is cut off at 230 seconds, lower `top` and call again. Do not put more than 20 reads in one batch.
+B1 is an always-on App Service plan. You pay for the plan hour, not for each call. One instance in East Asia is about $0.02 per hour on the public price list, about $15 per month, whether the function is idle or not. Delete or stop the plan to stop that charge. Storage and Application Insights are extra and are usually a few dollars at this volume. Your contract price can be lower. Check the price for your region before you create the plan.
+
+A test of this pattern, 1,500 items, returned in about 54 seconds. That fits on B1. The HTTP response still has to come back within 230 seconds. A more expensive plan does not remove that limit.
+
+Move to **Premium EP1** only if a B1 call is cut off, the first call after idle is too slow, or you need the function execution itself to run for more than a few minutes. EP1 keeps at least one instance allocated. In East Asia the public list price is about $0.20 per vCPU hour plus $0.0143 per GiB hour. EP1 is 1 vCPU and 3.5 GB, so one always-on instance is about $183 per month. Consumption is the wrong start: it can scale to zero, and one execution is capped at 10 minutes.
 
 Sign in first. If `az account show` is the wrong subscription, run `az login` and `az account set --subscription YOUR-SUBSCRIPTION`. Creating the app does not deploy the code in this repo. The `aggregate` route appears only after the deploy step.
 
-Replace `westeurope` if this workload lives in another region. `YOUR-FUNCTION-APP` and the storage account name must be globally unique.
+Replace `eastasia` if this workload lives in another region. `YOUR-FUNCTION-APP` and the storage account name must be globally unique.
 
 ### Portal
 
 1. In the Azure portal, create a **Function App**.
 2. Publish **Code**. Runtime stack **Python 3.11**. Operating system **Linux**. Version **4**.
-3. Plan type **Functions Premium**, size **EP1**. Create the storage account the wizard asks for. Turn Application Insights on.
+3. Plan type **App Service**, operating system **Linux**, size **Basic B1**. Do not pick Consumption or Elastic Premium yet. Create the storage account the wizard asks for. Turn Application Insights on.
 4. After deployment, open the app, then **Identity**, then **System assigned**, and set it to **On**. Save. Copy both ids:
    - **Object (principal) ID**
    - The application id. If the blade does not show it, run the command in the next section.
@@ -164,19 +168,19 @@ Replace `westeurope` if this workload lives in another region. `YOUR-FUNCTION-AP
 ### CLI equivalent
 
 ```bash
-az group create --name rg-sp-lookup-aggregate --location westeurope
+az group create --name rg-sp-lookup-aggregate --location eastasia
 
 az storage account create \
   --name stsplookupagg \
   --resource-group rg-sp-lookup-aggregate \
-  --location westeurope \
+  --location eastasia \
   --sku Standard_LRS
 
 az functionapp plan create \
   --name plan-sp-lookup-aggregate \
   --resource-group rg-sp-lookup-aggregate \
-  --location westeurope \
-  --sku EP1 \
+  --location eastasia \
+  --sku B1 \
   --is-linux
 
 az functionapp create \
@@ -202,6 +206,57 @@ az functionapp config appsettings set \
 ```
 
 `YOUR-FUNCTION-APP` must be globally unique. Change the storage account name if `stsplookupagg` is taken.
+
+### Move to EP1 only if B1 is not enough
+
+Do not change the B1 SKU to EP1. They are different plan types. Create a Premium plan and move the existing app. The identity, app settings, and deployed code stay with the app.
+
+```bash
+az functionapp plan create \
+  --name plan-sp-lookup-ep1 \
+  --resource-group rg-sp-lookup-aggregate \
+  --location eastasia \
+  --sku EP1 \
+  --is-linux
+
+az functionapp update \
+  --name YOUR-FUNCTION-APP \
+  --resource-group rg-sp-lookup-aggregate \
+  --plan plan-sp-lookup-ep1
+```
+
+After the move, you can delete `plan-sp-lookup-aggregate` if no other app uses it. EP1 still does not remove the 230-second HTTP limit. If the caller times out there, lower `top` and call again.
+
+## Use a coding agent
+
+A coding agent can run the commands above for you. It does not get extra Azure rights. It can only do what `az login` can already do. The `Sites.Selected` grant still needs an account that can assign Graph application roles and SharePoint site permission.
+
+Two pieces make this the same kind of setup used to build this playbook:
+
+1. [Azure MCP Server](https://github.com/Azure/mcp) lets the agent read and change resources in the signed-in subscription.
+2. The [Azure skills plugin](https://github.com/microsoft/azure-skills) teaches the agent how Function Apps, plans, and identity grants are supposed to be done. Skills do not replace MCP. Without MCP or the Azure CLI, the agent can only tell you the commands.
+
+In GitHub Copilot CLI, after `az login` and `copilot`:
+
+1. Run `/mcp add`.
+2. Name the server `azure-mcp`.
+3. Type: local. Command: `npx -y @azure/mcp@latest server start`.
+4. Leave environment variables empty so it uses the Azure CLI login.
+5. Tools: `*`. Save, then `/mcp show`.
+
+Official steps: [Azure MCP Server with GitHub Copilot CLI](https://learn.microsoft.com/azure/developer/azure-mcp-server/how-to/github-copilot-cli). In VS Code or another MCP client, add the same command. Install the Azure skills plugin from the Copilot plugin marketplace if you want the agent to follow the Functions hosting guidance as well.
+
+Open this repository and use a prompt like this. Do not paste a function key into a shared chat, and do not let the agent commit `local.settings.json` or a key.
+
+```text
+Deploy this repository as a Python 3.11 Linux Function App on Basic B1.
+Turn on the system-assigned identity.
+Set GRAPH_SITE_ID and GRAPH_LIST_ID from the list URL I paste.
+Do not create Premium EP1 unless a B1 call exceeds 230 seconds or the cold start is a problem.
+Do not print or commit the function key.
+```
+
+Then grant the identity, publish if the agent has not already, and call `mode=mock` with `top=2` before `mode=graph`.
 
 ## Let the function read the list
 
