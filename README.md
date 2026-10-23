@@ -231,20 +231,16 @@ After the move, you can delete `plan-sp-lookup-aggregate` if no other app uses i
 
 A coding agent can run the commands above for you. It does not get extra Azure rights. It can only do what `az login` can already do. The `Sites.Selected` grant still needs an account that can assign Graph application roles and SharePoint site permission.
 
-Two pieces make this the same kind of setup used to build this playbook:
+Use the same plugin that was used to build this playbook: [azure-skills](https://github.com/microsoft/azure-skills), plugin `azure`. It installs the Azure skills and the [Azure MCP Server](https://github.com/Azure/mcp) (`npx -y @azure/mcp@latest server start`). The MCP server is what talks to the signed-in subscription. The skills tell the agent how a Function App, plan, and identity grant should be done.
 
-1. [Azure MCP Server](https://github.com/Azure/mcp) lets the agent read and change resources in the signed-in subscription.
-2. The [Azure skills plugin](https://github.com/microsoft/azure-skills) teaches the agent how Function Apps, plans, and identity grants are supposed to be done. Skills do not replace MCP. Without MCP or the Azure CLI, the agent can only tell you the commands.
+In GitHub Copilot CLI, after `az login`:
 
-In GitHub Copilot CLI, after `az login` and `copilot`:
+```text
+/plugin marketplace add microsoft/azure-skills
+/plugin install azure@azure-skills
+```
 
-1. Run `/mcp add`.
-2. Name the server `azure-mcp`.
-3. Type: local. Command: `npx -y @azure/mcp@latest server start`.
-4. Leave environment variables empty so it uses the Azure CLI login.
-5. Tools: `*`. Save, then `/mcp show`.
-
-Official steps: [Azure MCP Server with GitHub Copilot CLI](https://learn.microsoft.com/azure/developer/azure-mcp-server/how-to/github-copilot-cli). In VS Code or another MCP client, add the same command. Install the Azure skills plugin from the Copilot plugin marketplace if you want the agent to follow the Functions hosting guidance as well.
+Then start `copilot` in this repository. The plugin registers the Azure MCP server. You do not need to add a second MCP server by hand. Confirm with `/mcp show`. The server should be `azure`, command `npx`, args `@azure/mcp@latest server start`. It uses the Azure CLI login. Do not put a client secret in the MCP config.
 
 Open this repository and use a prompt like this. Do not paste a function key into a shared chat, and do not let the agent commit `local.settings.json` or a key.
 
